@@ -14,30 +14,33 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 
-@WebServlet("/CapitalServlet")
+@WebServlet("/CapitalServlet") // Сервлет, который доступен по URL /CapitalServlet
 public class CapitalServlet extends HttpServlet {
-    private ServerSocket serverSocket;
+    private ServerSocket serverSocket; // Создание сервера сокетов
 
     @Override
     public void init() throws ServletException {
         try {
             int port = 12346; // Порт для сокетного сервера
-            serverSocket = new ServerSocket(port);
+            serverSocket = new ServerSocket(port); // Настройка сервера на прослушивание указанного порта
             new Thread(() -> {
                 while (true) {
                     try {
+                        // Принятие входящего соединения от клиента
                         Socket clientSocket = serverSocket.accept();
+                        // Обработка клиента в отдельном потоке
                         handleClient(clientSocket);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 }
-            }).start();
+            }).start(); // Запуск потока в фоне
         } catch (IOException e) {
             throw new ServletException("Не удалось запустить сервер", e);
         }
     }
 
+    // Метод для обработки запросов от клиентского сокета
     private void handleClient(Socket clientSocket) {
         try (BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
              PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)) {
@@ -51,21 +54,23 @@ public class CapitalServlet extends HttpServlet {
         }
     }
 
+    // Метод для получения столицы через внешний API
     private String getCapitalFromAPI(String country) {
         try {
+            // URL для запроса к API
             String urlString = "https://restcountries.com/v3.1/name/" + country + "?fullText=true";
             URL url = new URL(urlString);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection(); // Открытие соединения
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
 
-            // Проверяем код ответа
-            if (conn.getResponseCode() == 200) {
+            // Проверка кода ответа
+            if (conn.getResponseCode() == 200) { // Код 200 означает успешный ответ
                 StringBuilder response = new StringBuilder();
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                     String line;
                     while ((line = reader.readLine()) != null) {
-                        response.append(line);
+                        response.append(line); // Считываем ответ
                     }
                 }
 
@@ -73,29 +78,31 @@ public class CapitalServlet extends HttpServlet {
                 String jsonResponse = response.toString();
                 // Извлечение столицы из JSON
                 String capital = parseCapitalFromJSON(jsonResponse);
-                return capital;
+                return capital; // Возвращаем столицу
             } else {
-                return "Столица не найдена";
+                return "Столица не найдена"; // Если код ответа не 200
             }
         } catch (IOException e) {
             e.printStackTrace();
-            return "Ошибка при получении данных с API";
+            return "Ошибка при получении данных с API"; // Ошибка в процессе получения данных
         }
     }
 
+    // Метод для разбора JSON и извлечения столицы
     private String parseCapitalFromJSON(String jsonResponse) {
         // Извлекаем капитал из JSON
         String[] parts = jsonResponse.split("\"capital\":");
         if (parts.length > 1) {
             String capitalPart = parts[1].split(",")[0].replace("\"", "").trim();
-            return capitalPart;
+            return capitalPart; // Возвращаем капитал
         }
-        return "Столица не найдена";
+        return "Столица не найдена"; // Если не удалось найти столицу
     }
 
     @Override
     public void destroy() {
         try {
+            // Закрываем серверный сокет при разрушении сервлета
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
             }
@@ -104,13 +111,14 @@ public class CapitalServlet extends HttpServlet {
         }
     }
 
+    // Метод для обработки POST-запроса
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        String country = request.getParameter("country");
-        String ip = request.getParameter("ip");
-        String port = request.getParameter("port");
+        String country = request.getParameter("country"); // Получаем страну из параметров запроса
+        String ip = request.getParameter("ip"); // Получаем IP-адрес сервера сокетов
+        String port = request.getParameter("port"); // Получаем порт сервера сокетов
 
         // Установка соединения с сокетным сервером
-        try (Socket socket = new Socket(ip, Integer.parseInt(port));
+        try (Socket socket = new Socket(ip, Integer.parseInt(port)); // Создаем соединение с указанным IP и портом
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
